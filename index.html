@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Generador de PDF de Evidencias</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <div class="container">
+    <h1>📄 Generador de PDF</h1>
+
+    <label for="curso">Selecciona el curso:</label>
+    <select id="curso">
+      <option value="">-- Selecciona --</option>
+      <option value="Matemática Discreta">1 - Matemática Discreta</option>
+      <option value="Precálculo">2 - Precálculo</option>
+      <option value="Algoritmos">3 - Algoritmos</option>
+      <option value="Contabilidad">4 - Contabilidad</option>
+      <option value="Álgebra Lineal">5 - Álgebra Lineal</option>
+    </select>
+
+    <label for="imagenes">Sube las imágenes:</label>
+    <input type="file" id="imagenes" accept="image/*" multiple>
+
+    <button onclick="generarPDF()">📥 Generar PDF</button>
+  </div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+  <script src="script.js"></script>
+</body>
+</html>
