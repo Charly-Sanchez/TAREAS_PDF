@@ -12,8 +12,8 @@ async function generarPDF() {
     return;
   }
 
-  // Crea imagen del encabezado con el texto del curso integrado
-  const encabezadoBase64 = await generarEncabezadoConCurso(curso);
+  // Encabezado de alta resolución (doble tamaño)
+  const encabezadoBase64 = await generarEncabezadoConCursoHD(curso);
 
   const pdf = new jsPDF();
 
@@ -23,12 +23,12 @@ async function generarPDF() {
     const pageWidth = pdf.internal.pageSize.getWidth();
     const pageHeight = pdf.internal.pageSize.getHeight();
 
-    // Encabezado visual con texto integrado
+    // Encabezado visual con texto integrado, escalado a tamaño deseado
     const encabezadoAltura = 30;
     pdf.addImage(encabezadoBase64, 'PNG', 10, 10, pageWidth - 20, encabezadoAltura);
 
-    // Imagen del usuario
-    const imagenBase64 = await toBase64(archivos[i]);
+    // Imagen del usuario, optimizada
+    const imagenBase64 = await toCompressedBase64(archivos[i], 1024, 1024, 0.85);
     const imgProps = pdf.getImageProperties(imagenBase64);
 
     const maxAncho = pageWidth - 20;
@@ -37,6 +37,7 @@ async function generarPDF() {
     let ancho = imgProps.width;
     let alto = imgProps.height;
 
+    // Escalado proporcional (por si la imagen sigue muy grande)
     if (ancho > maxAncho) {
       alto = (maxAncho / ancho) * alto;
       ancho = maxAncho;
@@ -49,7 +50,7 @@ async function generarPDF() {
     const x = (pageWidth - ancho) / 2;
     const y = encabezadoAltura + 20;
 
-    pdf.addImage(imagenBase64, 'JPEG', x, y, ancho, alto);
+    pdf.addImage(imagenBase64, 'JPEG', x, y, ancho, alto, undefined, 'FAST'); // 'FAST' para compresión
 
     // Pie de página
     pdf.setFontSize(10);
@@ -59,42 +60,65 @@ async function generarPDF() {
   pdf.save(`Evidencia_${curso}.pdf`);
 }
 
-function toBase64(file) {
+// Comprime y redimensiona la imagen antes de insertarla al PDF
+async function toCompressedBase64(file, maxWidth, maxHeight, quality = 0.85) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
-    reader.onload = e => resolve(e.target.result);
+    reader.onload = e => {
+      const img = new Image();
+      img.onload = function () {
+        let { width, height } = img;
+        let scale = Math.min(maxWidth / width, maxHeight / height, 1);
+        let newWidth = width * scale;
+        let newHeight = height * scale;
+
+        const canvas = document.createElement("canvas");
+        canvas.width = newWidth;
+        canvas.height = newHeight;
+
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(img, 0, 0, newWidth, newHeight);
+
+        // JPEG para compresión (PDF admite mejor JPEG que PNG)
+        resolve(canvas.toDataURL("image/jpeg", quality));
+      };
+      img.onerror = err => reject(err);
+      img.src = e.target.result;
+    };
     reader.onerror = e => reject(e);
     reader.readAsDataURL(file);
   });
 }
 
-// 🖼️ Reemplaza texto "CURSO: ___" por el curso real usando canvas
-async function generarEncabezadoConCurso(curso) {
+// Encabezado de alta definición (doble resolución)
+async function generarEncabezadoConCursoHD(curso) {
   return new Promise((resolve, reject) => {
     const img = new Image();
     img.crossOrigin = "anonymous";
-    img.src = 'encabezado.png'; // Asegúrese de tener la imagen en esta ruta o cambiar el nombre si es diferente
+    img.src = 'encabezado.png'; // Usa imagen grande si puedes
 
     img.onload = function () {
+      // Escalamos el canvas al doble de tamaño para más nitidez
+      const scale = 2;
       const canvas = document.createElement("canvas");
-      canvas.width = img.width;
-      canvas.height = img.height;
+      canvas.width = img.width * scale;
+      canvas.height = img.height * scale;
 
       const ctx = canvas.getContext("2d");
-      ctx.drawImage(img, 0, 0);
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
 
       // Estilo del texto del curso
-      ctx.font = "bold 20px Arial";
+      ctx.font = `bold ${40}px Arial`; // Doble tamaño de fuente
       ctx.fillStyle = "#0c2c4a";
-      ctx.textAlign = "left ";
+      ctx.textAlign = "left";
 
-      // Ubicación precisa del texto sobre la línea
-      const x = 600; // ajustar según el encabezado exacto
-      const y = 84;  // ajustar según el encabezado exacto
+      // Ubicación precisa del texto sobre la línea (ajusta según tu encabezado)
+      const x = 900 * scale / 1.5; // Ajusta este valor
+      const y = 84 * scale;        // Ajusta este valor
 
       ctx.fillText(curso, x, y);
 
-      resolve(canvas.toDataURL("image/png"));
+      resolve(canvas.toDataURL("image/png", 1.0)); // PNG máxima calidad
     };
 
     img.onerror = function () {
